@@ -1,0 +1,23 @@
+{
+  "name": "mini-vue2",
+  "version": "1.0.0",
+  "description": "Vue2 mini版本",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "serve": "rollup -c -w"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://gitee.com/qu-wensong/mini-vue2.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@babel/core": "^7.18.9",
+    "@babel/preset-env": "^7.18.9",
+    "rollup": "^2.77.2",
+    "rollup-plugin-babel": "^4.4.0"
+  }
+}
