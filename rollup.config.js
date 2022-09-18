@@ -2,7 +2,7 @@ import babel from 'rollup-plugin-babel';
 
 export default {
   // 打包入口
-  input:'./src/index.js',
+  input:'./src/core/instance/index.js',
   // 打包出口
   output:{
     format:'umd',

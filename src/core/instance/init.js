@@ -1,5 +1,5 @@
 import { initState } from "./state"
-import { compileToFunction } from './compiler/index'
+import { compileToFunction } from '../../compiler/index'
 import { mountComponent } from "./lifecycle"
 
 export function initMixin(Vue){

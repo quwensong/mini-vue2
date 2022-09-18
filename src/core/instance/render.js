@@ -1,4 +1,4 @@
-import { createElement,createTextElement } from "./core/vdom/index"
+import { createElement,createTextElement } from "../vdom/index"
 
 export function renderMixin(Vue){
   // 创建普通dom
