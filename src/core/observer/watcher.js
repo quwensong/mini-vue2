@@ -1,3 +1,5 @@
+import { queueWatch } from './schedular'
+
 const bailRE = /[^\w.$]/
 
 let id = 0;
@@ -75,21 +77,7 @@ class Watcher{
     }
   }
 }
-let queue = []
-let has = {}
-function queueWatch(watcher){
-  const id = watcher.id;
-  if(has[id] == null) {
-    queue.push(watcher)
-    has[id] = true
-    setTimeout(()=>{
-      queue.forEach(watcher => watcher.run())
-      queue = []
-      has = {}
-    },0)
 
-  }
-}
 
 function parsePath(path){
   // 如果不是这种格式 'a.b.c'是函数的话直接返回

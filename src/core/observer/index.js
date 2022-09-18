@@ -1,4 +1,4 @@
-import { isObject,def } from "../../utils"
+import { isObject,def,isValidArrayIndex,isArray,hasOwn} from "../../util"
 import { arrayMethods } from './array'
 import Dep from './dep'
 
@@ -81,6 +81,65 @@ function copyAugment(target,src,keys){
     def(target,key,src[key])
   }
 }
+
+export function set(target,key,val) {
+  // target是数组并且key是一个有效的索引值，就先设置length属性
+  if (isArray(target) && isValidArrayIndex(key)) {
+    target.length = Math.max(target.length, key)
+    target.splice(key, 1, val)
+    return val
+  }
+  // 由于key已经存在于target中，所以其实这个key已经被侦测了变化。也就是说，这种情况属于修改数据，直接用key和val改数据就好了
+  if (key in target && !(key in Object.prototype)) {
+    target[key] = val
+    return val
+  }
+  const ob = target.__ob__;
+  // 那么，什么是根数据？this.$data就是根数据。
+  if (target._isVue || (ob && ob.vmCount)) {
+      console.warn('target不能是Vue.js实例或Vue.js实例的根数据对象')
+    return val
+  }
+  // 不是响应式数据直接赋值就行
+  if (!ob) {
+    target[key] = val
+    return val
+  }
+  // NOTE 处理新增的属性
+    /**
+   * 如果前面的所有判断条件都不满足，那么说明用户是在响应式数据上
+   * 新增了一个属性，这种情况下需要追踪这个新增属性的变化，即使用
+   * defineReactive将新增属性转换成getter/setter的形式即可。
+   */
+  defineReactive(ob.value, key, val)
+  // 向target的依赖触发变化通知，并返回val
+  ob.dep.notify()
+  return val
+}
+
+export function del(target, key){
+  // 数组
+  if(Array.isArray(target) && isValidArrayIndex(key)){
+    target.splice(key, 1)
+    return
+  }
+  
+  // 对象
+  const ob = target.__ob__;
+
+  if (target._isVue || (ob && ob.vmCount)) {
+    console.warn('target不能是Vue.js实例或Vue.js实例的根数据对象')
+    return 
+  }
+  // 如果不是target自己的属性就阻止程序继续执行
+  if(!hasOwn(target, key)) return
+
+  delete target[key]
+  // 只有响应式数据才需要发送通知
+  if(!ob) return
+  ob.dep.notify()
+}
+
 
 export function observer(value){
   // NOTE: 1、如果是对象才进行观测

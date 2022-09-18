@@ -1,6 +1,5 @@
 export function patch(oldVnode,vnode){
   // NOTE 1、真实dom节点
-  let el = null
   const isRealElement = oldVnode.nodeType
   if(isRealElement){
     const oldElm = oldVnode
@@ -8,12 +7,13 @@ export function patch(oldVnode,vnode){
     const parentElm = oldVnode.parentNode
 
     const elm = createElm(vnode)
-    el = parentElm.insertBefore(elm, oldVnode.nextSibling)
+    parentElm.insertBefore(elm, oldVnode.nextSibling)
     // insertBefore() 方法在您指定的已有子节点之前插入新的子节点。
     parentElm.removeChild(oldElm)
+    // 将渲染完成的真实dom节点返回
+    return elm
     
   }
-  return el
 }
 
 function createElm(vnode){
@@ -23,6 +23,7 @@ function createElm(vnode){
     vnode.el = document.createElement(tag)
     updateProperties(vnode)
     children.forEach(child => {//递归创建儿子节点
+
       vnode.el.appendChild(createElm(child))
     });
   }else{
@@ -35,4 +36,18 @@ function createElm(vnode){
 function updateProperties(vnode){
   const newProps = vnode.data || {};
   const el = vnode.el;
+
+  for(const key in newProps){
+    if(key == 'style'){
+      for(let styleName in newProps.style){
+        el.style[styleName] = newProps.style[styleName]
+      }
+    }else if(key == 'class'){
+      el.className = newProps.class
+    }else{
+      el.setAttribute(key,newProps)
+    }
+
+
+  }
 }

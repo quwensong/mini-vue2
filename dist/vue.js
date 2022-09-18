@@ -4,6 +4,32 @@
   (global = typeof globalThis !== 'undefined' ? globalThis : global || self, global.Vue = factory());
 })(this, (function () { 'use strict';
 
+  function ownKeys(object, enumerableOnly) {
+    var keys = Object.keys(object);
+
+    if (Object.getOwnPropertySymbols) {
+      var symbols = Object.getOwnPropertySymbols(object);
+      enumerableOnly && (symbols = symbols.filter(function (sym) {
+        return Object.getOwnPropertyDescriptor(object, sym).enumerable;
+      })), keys.push.apply(keys, symbols);
+    }
+
+    return keys;
+  }
+
+  function _objectSpread2(target) {
+    for (var i = 1; i < arguments.length; i++) {
+      var source = null != arguments[i] ? arguments[i] : {};
+      i % 2 ? ownKeys(Object(source), !0).forEach(function (key) {
+        _defineProperty(target, key, source[key]);
+      }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(target, Object.getOwnPropertyDescriptors(source)) : ownKeys(Object(source)).forEach(function (key) {
+        Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key));
+      });
+    }
+
+    return target;
+  }
+
   function _typeof(obj) {
     "@babel/helpers - typeof";
 
@@ -39,11 +65,53 @@
     return Constructor;
   }
 
+  function _defineProperty(obj, key, value) {
+    if (key in obj) {
+      Object.defineProperty(obj, key, {
+        value: value,
+        enumerable: true,
+        configurable: true,
+        writable: true
+      });
+    } else {
+      obj[key] = value;
+    }
+
+    return obj;
+  }
+
+  // Browser environment sniffing
+  var inBrowser = typeof window !== 'undefined';
+  var UA = inBrowser && window.navigator.userAgent.toLowerCase();
+  UA && /msie|trident/.test(UA);
+  UA && UA.indexOf('msie 9.0') > 0;
+  var isEdge = UA && UA.indexOf('edge/') > 0;
+  UA && UA.indexOf('android') > 0;
+  var isIOS = UA && /iphone|ipad|ipod|ios/.test(UA);
+  UA && /chrome\/\d+/.test(UA) && !isEdge;
+  UA && /phantomjs/.test(UA);
+  UA && UA.match(/firefox\/(\d+)/);
   function isFunction(target) {
     return typeof target === 'function';
   }
   function isObject$1(target) {
     return _typeof(target) === "object" && target !== null;
+  }
+  function isArray(target) {
+    return Array.isArray(target);
+  }
+  /**
+   * Get the raw type string of a value, e.g., [object Object].
+   */
+
+  var _toString = Object.prototype.toString;
+  /**
+   * Strict object type check. Only returns true
+   * for plain JavaScript objects.
+   */
+
+  function isPlainObject(obj) {
+    return _toString.call(obj) === '[object Object]';
   }
   function def(target, key, value, enumerable) {
     Object.defineProperty(target, key, {
@@ -52,6 +120,42 @@
       writable: true,
       configurable: true
     });
+  }
+  /**
+   * Check if val is a valid(有效) array index.
+   */
+
+  function isValidArrayIndex(val) {
+    var n = parseFloat(String(val));
+    return n >= 0 && Math.floor(n) === n && isFinite(val);
+  }
+  /* istanbul ignore next */
+
+  function isNative(Ctor) {
+    return typeof Ctor === 'function' && /native code/.test(Ctor.toString());
+  }
+  /**
+   * Check whether an object has the property.
+   */
+
+  var hasOwnProperty = Object.prototype.hasOwnProperty;
+  function hasOwn(obj, key) {
+    return hasOwnProperty.call(obj, key);
+  }
+  /**
+   * Convert an Array-like object to a real Array.
+   */
+
+  function toArray(list, start) {
+    start = start || 0;
+    var i = list.length - start;
+    var ret = new Array(i);
+
+    while (i--) {
+      ret[i] = list[i + start];
+    }
+
+    return ret;
   }
 
   var oldArrProto = Array.prototype;
@@ -190,7 +294,7 @@
       key: "observerArray",
       value: function observerArray(value) {
         value.forEach(function (item) {
-          return observer(item);
+          return observer$1(item);
         });
       }
     }]);
@@ -200,7 +304,7 @@
 
   function defineReactive(data, key, value) {
     // NOTE 4、value有可能是对象，再进行递归劫持
-    var childOb = observer(value); // 每个属性都对应一个 dep
+    var childOb = observer$1(value); // 每个属性都对应一个 dep
 
     var dep = new Dep();
     Object.defineProperty(data, key, {
@@ -220,7 +324,7 @@
         // NOTE 5、如果用户赋值一个新的对象需要将这个对象也进行劫持
         // TAG：只有新增加的属性是对象才会进行监听劫持
         if (newValue !== value) {
-          observer(newValue); // (对象触发收集的 watcher )告诉当前的属性存放的wtacher执行get()
+          observer$1(newValue); // (对象触发收集的 watcher )告诉当前的属性存放的wtacher执行get()
 
           dep.notify();
           value = newValue;
@@ -240,7 +344,68 @@
     }
   }
 
-  function observer(value) {
+  function set(target, key, val) {
+    // target是数组并且key是一个有效的索引值，就先设置length属性
+    if (isArray(target) && isValidArrayIndex(key)) {
+      target.length = Math.max(target.length, key);
+      target.splice(key, 1, val);
+      return val;
+    } // 由于key已经存在于target中，所以其实这个key已经被侦测了变化。也就是说，这种情况属于修改数据，直接用key和val改数据就好了
+
+
+    if (key in target && !(key in Object.prototype)) {
+      target[key] = val;
+      return val;
+    }
+
+    var ob = target.__ob__; // 那么，什么是根数据？this.$data就是根数据。
+
+    if (target._isVue || ob && ob.vmCount) {
+      console.warn('target不能是Vue.js实例或Vue.js实例的根数据对象');
+      return val;
+    } // 不是响应式数据直接赋值就行
+
+
+    if (!ob) {
+      target[key] = val;
+      return val;
+    } // NOTE 处理新增的属性
+
+    /**
+    * 如果前面的所有判断条件都不满足，那么说明用户是在响应式数据上
+    * 新增了一个属性，这种情况下需要追踪这个新增属性的变化，即使用
+    * defineReactive将新增属性转换成getter/setter的形式即可。
+    */
+
+
+    defineReactive(ob.value, key, val); // 向target的依赖触发变化通知，并返回val
+
+    ob.dep.notify();
+    return val;
+  }
+  function del(target, key) {
+    // 数组
+    if (Array.isArray(target) && isValidArrayIndex(key)) {
+      target.splice(key, 1);
+      return;
+    } // 对象
+
+
+    var ob = target.__ob__;
+
+    if (target._isVue || ob && ob.vmCount) {
+      console.warn('target不能是Vue.js实例或Vue.js实例的根数据对象');
+      return;
+    } // 如果不是target自己的属性就阻止程序继续执行
+
+
+    if (!hasOwn(target, key)) return;
+    delete target[key]; // 只有响应式数据才需要发送通知
+
+    if (!ob) return;
+    ob.dep.notify();
+  }
+  function observer$1(value) {
     // NOTE: 1、如果是对象才进行观测
     if (!isObject$1(value)) return; // NOTE: 2、如果是响应式的也没必要再进行观测了
 
@@ -253,6 +418,84 @@
     }
 
     return ob;
+  }
+
+  var callbacks = [];
+  var pending = false;
+
+  function flushCallbacks() {
+    pending = false;
+    var copies = callbacks.slice(0);
+    callbacks.length = 0;
+    copies.forEach(function (cb) {
+      return cb();
+    });
+  }
+
+  var timerFunc;
+
+  if (typeof Promise !== 'undefined' && isNative(Promise)) {
+    var p = Promise.resolve();
+
+    timerFunc = function timerFunc() {
+      p.then(flushCallbacks);
+      if (isIOS) setTimeout(noop);
+    };
+  } else if (!isIE && typeof MutationObserver !== 'undefined' && (isNative(MutationObserver) || MutationObserver.toString() === '[object MutationObserverConstructor]')) {
+    var counter = 1;
+    var observer = new MutationObserver(flushCallbacks);
+    var textNode = document.createTextNode(String(counter));
+    observer.observe(textNode, {
+      characterData: true
+    });
+
+    timerFunc = function timerFunc() {
+      counter = (counter + 1) % 2;
+      textNode.data = String(counter);
+    };
+  } else if (typeof setImmediate !== 'undefined' && isNative(setImmediate)) {
+    timerFunc = function timerFunc() {
+      setImmediate(flushCallbacks);
+    };
+  } else {
+    timerFunc = function timerFunc() {
+      setTimeout(flushCallbacks, 0);
+    };
+  }
+
+  function nextTick(cb, ctx) {
+    callbacks.push(function () {
+      if (cb) {
+        try {
+          cb.call(ctx);
+        } catch (e) {
+          console.error(e, ctx, 'nextTick');
+        }
+      }
+    });
+
+    if (!pending) {
+      pending = true;
+      timerFunc();
+    }
+  }
+
+  var queue = [];
+  var has = {};
+  function queueWatch(watcher) {
+    var id = watcher.id;
+
+    if (has[id] == null) {
+      queue.push(watcher);
+      has[id] = true;
+      nextTick(function () {
+        queue.forEach(function (watcher) {
+          return watcher.run();
+        });
+        queue = [];
+        has = {};
+      });
+    }
   }
 
   var bailRE = /[^\w.$]/;
@@ -355,25 +598,6 @@
     return Watcher;
   }();
 
-  var queue = [];
-  var has = {};
-
-  function queueWatch(watcher) {
-    var id = watcher.id;
-
-    if (has[id] == null) {
-      queue.push(watcher);
-      has[id] = true;
-      setTimeout(function () {
-        queue.forEach(function (watcher) {
-          return watcher.run();
-        });
-        queue = [];
-        has = {};
-      }, 0);
-    }
-  }
-
   function parsePath(path) {
     // 如果不是这种格式 'a.b.c'是函数的话直接返回
     if (bailRE.test(path)) return path;
@@ -473,13 +697,14 @@
     } // NOTE: 1、把 data 变成响应式
 
 
-    observer(data);
+    observer$1(data);
   }
 
   function stateMixin(Vue) {
     // Vue.js中计算属性（Computed）的实现原理与expOrFn支持函数有很大的关系
-    // Vue.prototype.$set = set
-    // Vue.prototype.$delete = del
+    Vue.prototype.$set = set;
+    Vue.prototype.$delete = del;
+
     Vue.prototype.$watch = function (expOrFn, cb, options) {
       var vm = this;
       options = options || {};
@@ -493,6 +718,73 @@
       return function unwatchFn() {
         watcher.teardown();
       };
+    };
+  }
+
+  function createElement(vm, tag, attrs) {
+    for (var _len = arguments.length, children = new Array(_len > 3 ? _len - 3 : 0), _key = 3; _key < _len; _key++) {
+      children[_key - 3] = arguments[_key];
+    }
+
+    return vnode(vm, tag, attrs, children, undefined);
+  }
+  function createTextElement(vm, text) {
+    return vnode(vm, undefined, undefined, undefined, text);
+  }
+
+  function vnode(vm, tag, attrs, children, text) {
+    return {
+      vm: vm,
+      tag: tag,
+      attrs: attrs,
+      key: attrs === null || attrs === void 0 ? void 0 : attrs.key,
+      children: children,
+      text: text // ...
+
+    };
+  }
+
+  function renderMixin(Vue) {
+    Vue.prototype.$nextTick = function (fn) {
+      return nextTick(fn, this);
+    };
+
+    Vue.prototype._render = function () {
+      var vm = this;
+      var render = vm.$options.render;
+      var vnode = render.call(vm, vm.$createElement);
+      return vnode;
+    }; // 创建普通dom
+
+
+    Vue.prototype._c = function (tag, attrs) {
+      for (var _len = arguments.length, children = new Array(_len > 2 ? _len - 2 : 0), _key = 2; _key < _len; _key++) {
+        children[_key - 2] = arguments[_key];
+      }
+
+      return createElement.apply(void 0, [this, tag, attrs].concat(children));
+    }; // 创建文本dom
+
+
+    Vue.prototype._v = function (text) {
+      return createTextElement(this, text);
+    }; // JSON
+
+
+    Vue.prototype._s = function (val) {
+      if (_typeof(val) === "object") return JSON.stringify(val);
+      return val;
+    };
+  }
+  function initRender(vm) {
+    vm._vnode = null; // the root of the child tree
+
+    vm._staticTrees = null; // v-once cached trees
+
+    vm.$options;
+
+    vm.$createElement = function (a, b, c) {
+      return createElement(vm, a, b, c);
     };
   }
 
@@ -725,7 +1017,6 @@
 
   function patch(oldVnode, vnode) {
     // NOTE 1、真实dom节点
-    var el = null;
     var isRealElement = oldVnode.nodeType;
 
     if (isRealElement) {
@@ -733,12 +1024,12 @@
 
       var parentElm = oldVnode.parentNode;
       var elm = createElm(vnode);
-      el = parentElm.insertBefore(elm, oldVnode.nextSibling); // insertBefore() 方法在您指定的已有子节点之前插入新的子节点。
+      parentElm.insertBefore(elm, oldVnode.nextSibling); // insertBefore() 方法在您指定的已有子节点之前插入新的子节点。
 
-      parentElm.removeChild(oldElm);
+      parentElm.removeChild(oldElm); // 将渲染完成的真实dom节点返回
+
+      return elm;
     }
-
-    return el;
   }
 
   function createElm(vnode) {
@@ -764,8 +1055,20 @@
 
 
   function updateProperties(vnode) {
-    vnode.data || {};
-    vnode.el;
+    var newProps = vnode.data || {};
+    var el = vnode.el;
+
+    for (var key in newProps) {
+      if (key == 'style') {
+        for (var styleName in newProps.style) {
+          el.style[styleName] = newProps.style[styleName];
+        }
+      } else if (key == 'class') {
+        el.className = newProps["class"];
+      } else {
+        el.setAttribute(key, newProps);
+      }
+    }
   }
 
   function lifecycleMixin(Vue) {
@@ -779,6 +1082,7 @@
   function mountComponent(vm, el) {
     vm.$options;
     vm.$el = el;
+    callHook(vm, 'beforeMount');
 
     var updateComponent = function updateComponent() {
       // NOTE 1.调用render函数，生成虚拟dom
@@ -787,16 +1091,91 @@
     };
 
     new Watcher(vm, updateComponent, function () {}, true);
+    callHook(vm, 'mounted');
+  }
+  function callHook(vm, hook) {
+    var handlers = vm.$options[hook];
+
+    if (handlers) {
+      handlers.forEach(function (hook) {
+        return hook.call(vm);
+      });
+    }
   }
 
-  function initMixin(Vue) {
+  var ASSET_TYPES = ['component', 'directive', 'filter'];
+  var LIFECYCLE_HOOKS = ['beforeCreate', 'created', 'beforeMount', 'mounted', 'beforeUpdate', 'updated', 'beforeDestroy', 'destroyed', 'activated', 'deactivated'];
+
+  var strats = {}; // 合并生命周期
+
+  function mergeHook(parentVal, childVal) {
+    if (childVal) {
+      if (parentVal) {
+        return parentVal.concat(childVal);
+      } else {
+        return [childVal];
+      }
+    } else {
+      return parentVal;
+    }
+  }
+
+  LIFECYCLE_HOOKS.forEach(function (hook) {
+    strats[hook] = mergeHook;
+  });
+  /**
+   * Merge two option objects into a new one.
+   * Core utility used in both instantiation and inheritance.
+   */
+
+  function mergeOptions(parent, child, vm) {
+    // normalizeProps(child, vm)
+    // normalizeInject(child, vm)
+    // normalizeDirectives(child)
+    var options = {};
+    var key;
+
+    for (key in parent) {
+      mergeField(key);
+    }
+
+    for (key in child) {
+      // 如果已经合并过了就不需要再次合并了
+      if (!hasOwn(parent, key)) {
+        mergeField(key);
+      }
+    }
+
+    function mergeField(key) {
+      if (strats[key]) {
+        return options[key] = strats[key](parent[key], child[key]);
+      }
+
+      if (_typeof(parent[key]) === 'object' && _typeof(child[key]) == 'object') {
+        options[key] = _objectSpread2(_objectSpread2({}, parent[key]), child[key]);
+      } else if (child[key] == null) {
+        options[key] = parent[key];
+      } else {
+        options[key] = child[key];
+      }
+    }
+
+    return options;
+  }
+
+  function initMixin$1(Vue) {
     Vue.prototype._init = function (options) {
       //TAG：this和vm保存的是同一个对象的地址，所以vm上面增加内容了，对应的Vue
       //TAG：实例对象也会增加
-      var vm = this;
-      vm.$options = options; //NOTE：1、对数据进行初始化
+      var vm = this; // 将用户自己的 options 和 Vue 上面的进行合并
 
-      initState(vm); //NOTE: 2、编译挂载
+      vm.$options = mergeOptions(vm.constructor.options, options);
+      vm._self = vm;
+      initRender(vm); //NOTE：1、对数据进行初始化
+
+      callHook(vm, 'beforeCreate');
+      initState(vm);
+      callHook(vm, 'created'); //NOTE: 2、编译挂载
 
       if (vm.$options.el) {
         // 将数据挂载到这个模板上面
@@ -835,66 +1214,134 @@
     字符串 '<div id="d"><p>Content</p><p>Further Elaborated</p></div>'
    */
 
-  function createElement(vm, tag, attrs) {
-    for (var _len = arguments.length, children = new Array(_len > 3 ? _len - 3 : 0), _key = 3; _key < _len; _key++) {
-      children[_key - 3] = arguments[_key];
-    }
-
-    return vnode(vm, tag, attrs, attrs.key, children, undefined);
-  }
-  function createTextElement(vm, text) {
-    return vnode(vm, undefined, undefined, undefined, undefined, text);
-  }
-
-  function vnode(vm, tag, attrs, key, children, text) {
-    return {
-      vm: vm,
-      tag: tag,
-      attrs: attrs,
-      key: key,
-      children: children,
-      text: text // ...
-
+  function initMixin(Vue) {
+    Vue.mixin = function (mixin) {
+      // 这里的 this 就是 Vue
+      this.options = mergeOptions(this.options, mixin);
+      return this;
     };
   }
 
-  function renderMixin(Vue) {
-    // 创建普通dom
-    Vue.prototype._c = function (tag, attrs) {
-      for (var _len = arguments.length, children = new Array(_len > 2 ? _len - 2 : 0), _key = 2; _key < _len; _key++) {
-        children[_key - 2] = arguments[_key];
+  function initUse(Vue) {
+    Vue.use = function (plugin) {
+      var installedPlugins = this._installedPlugins || (this._installedPlugins = []);
+
+      if (installedPlugins.indexOf(plugin) > -1) {
+        return this;
+      } // additional parameters
+
+
+      var args = toArray(arguments, 1);
+      args.unshift(this);
+
+      if (isFunction(plugin.install)) {
+        plugin.install.apply(plugin, args);
+      } else if (isFunction(plugin)) {
+        plugin.apply(null, args);
       }
 
-      return createElement.apply(void 0, [this, tag, attrs].concat(children));
-    }; // 创建文本dom
-
-
-    Vue.prototype._v = function (text) {
-      return createTextElement(this, text);
-    }; // JSON
-
-
-    Vue.prototype._s = function (val) {
-      if (_typeof(val) === "object") return JSON.stringify(val);
-      return val;
+      installedPlugins.push(plugin);
+      return this;
     };
+  }
 
-    Vue.prototype._render = function () {
-      var vm = this;
-      var render = vm.$options.render;
-      var vnode = render.call(vm);
-      return vnode;
+  function initAssetRegisters(Vue) {
+    ASSET_TYPES.forEach(function (type) {
+      Vue[type] = function (id, definition) {
+        if (!definition) {
+          return this.options[type + 's'][id];
+        } else {
+          if (type === 'component' && isPlainObject(definition)) {
+            definition.name = definition.name || id;
+            definition = this.options._base.extend(definition);
+            console.log("🚀 ~ file:inition", definition.prototype);
+          }
+
+          if (type === 'directive' && isFunction(definition)) {
+            definition = {
+              bind: definition,
+              update: definition
+            };
+          } // 不是组件 指令那就只能是过滤器了
+
+
+          this.options[type + 's'][id] = definition;
+          return definition;
+        }
+      };
+    });
+  }
+
+  function initExtend(Vue) {
+    Vue.cid = 0;
+    var cid = 1; // 类的继承
+
+    Vue.extend = function (extendOptions) {
+      extendOptions = extendOptions || {};
+      var Super = this;
+      var SuperId = Super.cid; // 做一个缓存
+
+      var cachedCtors = extendOptions._Ctor || (extendOptions._Ctor = {});
+
+      if (cachedCtors[SuperId]) {
+        return cachedCtors[SuperId];
+      }
+
+      var Sub = function VueComponent(options) {
+        this._init(options);
+      };
+
+      Sub.prototype = Object.create(Super.prototype);
+      Sub.prototype.constructor = Sub;
+      Sub.cid = cid++;
+      Sub.options = mergeOptions(Super.options, extendOptions);
+      Sub['super'] = Super; // if (Sub.options.props) {
+      //   initProps(Sub)
+      // }
+      // if (Sub.options.computed) {
+      //   initComputed(Sub)
+      // }
+
+      Sub.extend = Super.extend;
+      Sub.mixin = Super.mixin;
+      Sub.use = Super.use;
+      ASSET_TYPES.forEach(function (type) {
+        Sub[type] = Super[type];
+      });
+
+      if (name) {
+        Sub.options.components[name] = Sub;
+      } // cache constructor
+
+
+      cachedCtors[SuperId] = Sub;
+      return Sub;
     };
+  }
+
+  function initGlobalAPI(Vue) {
+    Vue.options = {};
+    initMixin(Vue);
+    initUse(Vue);
+    initExtend(Vue); // 初始化全局 过滤器 组件 指令
+
+    ASSET_TYPES.forEach(function (type) {
+      return Vue.options["".concat(type, "s")] = Object.create({});
+    });
+    initAssetRegisters(Vue);
+    Vue.options._base = Vue;
   }
 
   function Vue(options) {
     this._init(options);
   }
 
-  initMixin(Vue);
+  initMixin$1(Vue);
   stateMixin(Vue);
   renderMixin(Vue);
-  lifecycleMixin(Vue);
+  lifecycleMixin(Vue); // 初始化全局API mixin 
+
+  initGlobalAPI(Vue);
 
   return Vue;
 

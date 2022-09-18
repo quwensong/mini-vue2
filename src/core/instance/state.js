@@ -1,5 +1,5 @@
-import { observer } from '../observer/index'
-import { isFunction } from '../../utils'
+import { set,del,observer } from '../observer/index'
+import { isFunction } from '../../util'
 import Watcher from '../observer/watcher'
 
 export function initState(vm){
@@ -60,8 +60,8 @@ function initData(vm){
 export function stateMixin(Vue) {
   // Vue.js中计算属性（Computed）的实现原理与expOrFn支持函数有很大的关系
 
-  // Vue.prototype.$set = set
-  // Vue.prototype.$delete = del
+  Vue.prototype.$set = set
+  Vue.prototype.$delete = del
 
   Vue.prototype.$watch = function (expOrFn,cb,options) {
     const vm = this
