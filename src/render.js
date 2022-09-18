@@ -1,9 +1,9 @@
-import { createElement,createTextElement } from "./vdom/index"
+import { createElement,createTextElement } from "./core/vdom/index"
 
 export function renderMixin(Vue){
   // 创建普通dom
   Vue.prototype._c = function(tag,attrs,...children){
-    return createElement(this,...arguments)
+    return createElement(this,tag,attrs,...children)
   }
   // 创建文本dom
   Vue.prototype._v = function(text){
@@ -17,9 +17,8 @@ export function renderMixin(Vue){
   Vue.prototype._render = function(){
     const vm = this
 
-    const render = vm.$options.render
+    const { render } = vm.$options
     const vnode = render.call(vm)
-
     return vnode
   }
 }

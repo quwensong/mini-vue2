@@ -1,8 +1,7 @@
-import { observer } from './observer/index'
+import { observer } from './core/observer/index'
 import { isFunction } from './utils'
 
 export function initState(vm){
-// console.log("🚀 ~ file: state.js ~ line 2 ~ initState ~ vm", vm)
   const options = vm.$options
   // NOTE: 1、props 初始化
   if(options.props){
@@ -38,9 +37,7 @@ function proxy(vm,source,key){
 function initData(vm){
   let data = vm.$options.data
   // INFO: Vue2中会将data中所有的数据进行劫持 Object.defineProperty
-  // console.log(data)
   if(!isFunction(data)){
-    console.error('data must be a function')
   }else{
     // TAG 绑定this 通过_data进行关联
     data = vm._data = data.call(vm)

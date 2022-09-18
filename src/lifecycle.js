@@ -1,16 +1,18 @@
-import { patch } from './vdom/patch'
-import Watcher from './observer/watcher'
+import { patch } from './core/vdom/patch'
+import Watcher from './core/observer/watcher'
 
 export function lifecycleMixin(Vue){
   Vue.prototype._update = function(vnode){
     const vm = this;
     // INFO 初始化 + 更新
-    // console.log(vm.$el,vnode)
-    patch(vm.$el,vnode)
+    // 用虚拟节点创建真实节点替换掉 $el
+    vm.$el = patch(vm.$el,vnode)
   }
 }
 
 export function mountComponent(vm,el){
+  const options = vm.$options
+  vm.$el = el;
   
   const updateComponent = () => {
     // NOTE 1.调用render函数，生成虚拟dom
@@ -18,7 +20,6 @@ export function mountComponent(vm,el){
     vm._update(vm._render())
 
   }
-  // updateComponent()
 
   new Watcher(vm, updateComponent,()=>{},true)
 }

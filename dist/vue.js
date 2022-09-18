@@ -39,57 +39,73 @@
     return Constructor;
   }
 
-  function isFunction(obj) {
-    return typeof obj === 'function';
+  function isFunction(target) {
+    return typeof target === 'function';
   }
-  function isObject(obj) {
-    return _typeof(obj) === "object" && obj !== null;
+  function isObject(target) {
+    return _typeof(target) === "object" && target !== null;
+  }
+  function def(target, key, value, enumerable) {
+    Object.defineProperty(target, key, {
+      value: value,
+      enumerable: !!enumerable,
+      writable: true,
+      configurable: true
+    });
   }
 
-  var oldArrayPrototype = Array.prototype;
-  var arrayMethods = Object.create(Array.prototype); // Object.create 使用现有的对象来作为新创建对象的原型
+  var oldArrProto = Array.prototype;
+  var arrayMethods = Object.create(oldArrProto); // Object.create 使用现有的对象来作为新创建对象的原型
 
-  var methods = ['push', 'unshift', 'splice', 'pop', 'reserve', 'sort', 'shift']; // 用户调用的是以上七个方法会用自己重写的，否则就用原来的数组原型上面的方法
+  var methods = ['push', 'unshift', 'splice', 'pop', 'reserve', 'sort', 'shift']; // configurable:false,//能否使用delete、能否需改属性特性、或能否修改访问器属性、，false为不可重新定义，默认值为true
+  // enumerable:false,//对象属性是否可通过for-in循环，flase为不可循环，默认值为true
+  // writable:false,//对象属性是否可修改,flase为不可修改，默认值为true
+  // 用户调用的是以上七个方法会用自己重写的，否则就用原来的数组原型上面的方法
 
   methods.forEach(function (method) {
-    arrayMethods[method] = function () {
-      var _oldArrayPrototype$me;
+    // NOTE 缓存原始方法
+    var original = oldArrProto[method]; // 代理
 
-      console.log('数组发生变化'); // oldArrayPrototype[method].apply(this,args)
+    Object.defineProperty(arrayMethods, method, {
+      value: function mutator() {
+        for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
+          args[_key] = arguments[_key];
+        }
 
-      for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
-        args[_key] = arguments[_key];
-      }
+        var result = original.call.apply(original, [this].concat(args));
+        var ob = this.__ob__;
+        var inserted;
 
-      (_oldArrayPrototype$me = oldArrayPrototype[method]).call.apply(_oldArrayPrototype$me, [this].concat(args));
+        switch (method) {
+          case 'push':
+          case 'unshift':
+            inserted = args;
+            break;
 
-      var inserted;
-      var ob = this.__ob__;
-
-      switch (method) {
-        case 'push':
-        case 'unshift':
-          inserted = args;
-          break;
-
-        case 'splice':
-          inserted = args.slice(2);
-          break;
-      } // 如果有新增加的值要继续进行劫持
+          case 'splice':
+            inserted = args.slice(2);
+            break;
+        } // 如果有新增加的值要继续进行劫持
 
 
-      if (inserted) ob.observerArray(inserted);
-    };
+        if (inserted) ob.observerArray(inserted);
+        ob.dep.notify();
+        return result;
+      },
+      enumerable: false,
+      writable: false,
+      configurable: false
+    });
   });
 
   // 每个属性都分配一个Dep,watcher中也要存放这个Dep,多对多
-  var id$1 = 0;
+  var uid = 0;
 
   var Dep = /*#__PURE__*/function () {
     function Dep() {
       _classCallCheck(this, Dep);
 
-      this.id = id$1++;
+      this.id = uid++;
       this.subs = []; //存放 watcher
     }
 
@@ -97,9 +113,9 @@
       key: "depend",
       value: function depend() {
         // dep要存放 watcher watcher也要存放 dep
-        if (Dep.target) {
+        if (window.target) {
           // 把dep传给watcher存储
-          Dep.target.addDep(this);
+          window.target.addDep(this); //新增
         }
       }
     }, {
@@ -108,9 +124,15 @@
         this.subs.push(watcher);
       }
     }, {
+      key: "removeSub",
+      value: function removeSub(watcher) {
+        remove(this.subs, watcher);
+      }
+    }, {
       key: "notify",
       value: function notify() {
-        this.subs.forEach(function (watcher) {
+        var subs = this.subs.slice();
+        subs.forEach(function (watcher) {
           return watcher.update();
         });
       }
@@ -119,51 +141,55 @@
     return Dep;
   }();
 
-  Dep.target = null;
-  function pushTarget(watcher) {
-    Dep.target = watcher;
+  function remove(arr, item) {
+    if (arr.length) {
+      var index = arr.indexOf(item);
+
+      if (index > -1) {
+        return arr.splice(index, 1);
+      }
+    }
   }
-  function popTarget(watcher) {
-    Dep.target = null;
-  }
+
+  var hasProto = ('__ob__' in {});
+  var arrKeys = Object.getOwnPropertyNames(arrayMethods); //INFO 观测者类 类有类型，对象没有类型
 
   var Observer = /*#__PURE__*/function () {
-    function Observer(data) {
+    function Observer(value) {
       _classCallCheck(this, Observer);
 
-      Object.defineProperty(data, '__ob__', {
-        value: this,
-        enumerable: false
-      }); // data.__ob__ = this;//所有被劫持的属性都有 __ob__
-      // NOTE 2、对data中的数据进行遍历循环 劫持 
+      this.value = value, this.dep = new Dep();
+      def(value, '__ob__', this); // value.__ob__ = this;//所有被劫持的属性都有 __ob__
+      // NOTE 2、对value中的数据进行遍历循环 劫持 
 
-      if (Array.isArray(data)) {
+      if (Array.isArray(value)) {
         //数组劫持 
         // 内部对数组不采用 Object.defineProperty
         // 对数组原来的方法进行改写 push shift pop unshift reserve sort splice/ 
         // __proto__指向构造函数的原型（prototype）对象 
-        data._proto_ = arrayMethods; // TAG 如果数组里面的是对象，则需要劫持对象
+        var augment = hasProto ? protoAugment : copyAugment;
+        augment(value, arrayMethods, arrKeys); // TAG 如果数组里面的是对象，则需要劫持对象
 
-        this.observerArray(data);
+        this.observerArray(value);
       } else {
-        this.walk(data); //对象劫持
+        this.walk(value); //对象劫持
       }
     } // 遍历对象
 
 
     _createClass(Observer, [{
       key: "walk",
-      value: function walk(data) {
+      value: function walk(value) {
         // NOTE 3、遍历对象，响应式劫持
-        Object.keys(data).forEach(function (key) {
-          return defineReactive(data, key, data[key]);
+        Object.keys(value).forEach(function (key) {
+          return defineReactive(value, key, value[key]);
         });
       } // 遍历数组
 
     }, {
       key: "observerArray",
-      value: function observerArray(data) {
-        data.forEach(function (item) {
+      value: function observerArray(value) {
+        value.forEach(function (item) {
           return observer(item);
         });
       }
@@ -174,15 +200,18 @@
 
   function defineReactive(data, key, value) {
     // NOTE 4、value有可能是对象，再进行递归劫持
-    observer(value); // 每个属性都对应一个 dep
+    var childOb = observer(value); // 每个属性都对应一个 dep
 
     var dep = new Dep();
     Object.defineProperty(data, key, {
       get: function get() {
         // 取值的时候将wtacher和dep关联起来
         // Dep.target
-        if (Dep.target) {
-          dep.depend();
+        if (window.target) {
+          // 收集对象依赖(watcher)
+          dep.depend(); // 收集数组依赖(watcher)
+
+          if (childOb) childOb.dep.depend();
         }
 
         return value;
@@ -191,30 +220,42 @@
         // NOTE 5、如果用户赋值一个新的对象需要将这个对象也进行劫持
         // TAG：只有新增加的属性是对象才会进行监听劫持
         if (newValue !== value) {
-          observer(newValue);
-          value = newValue; // 告诉当前的属性存放的wtacher执行get()
+          observer(newValue); // (对象触发收集的 watcher )告诉当前的属性存放的wtacher执行get()
 
           dep.notify();
+          value = newValue;
         }
       }
     });
   }
 
-  function observer(data) {
+  function protoAugment(target, src, keys) {
+    target.__ob__ = src;
+  }
+
+  function copyAugment(target, src, keys) {
+    for (var i = 0; i < keys.length; i++) {
+      var key = keys[i];
+      def(target, key, src[key]);
+    }
+  }
+
+  function observer(value) {
     // NOTE: 1、如果是对象才进行观测
-    if (!isObject(data)) {
-      return;
+    if (!isObject(value)) return; // NOTE: 2、如果是响应式的也没必要再进行观测了
+
+    var ob = null;
+
+    if (value.__ob__ && value.__ob__ instanceof Observer) {
+      ob = value.__ob__;
+    } else {
+      ob = new Observer(value);
     }
 
-    if (data.__ob__) {
-      return;
-    }
-
-    new Observer(data);
+    return ob;
   }
 
   function initState(vm) {
-    // console.log("🚀 ~ file: state.js ~ line 2 ~ initState ~ vm", vm)
     var options = vm.$options; // NOTE: 1、props 初始化
 
     if (options.props) ; // NOTE: 2、data 初始化
@@ -244,11 +285,8 @@
 
   function initData(vm) {
     var data = vm.$options.data; // INFO: Vue2中会将data中所有的数据进行劫持 Object.defineProperty
-    // console.log(data)
 
-    if (!isFunction(data)) {
-      console.error('data must be a function');
-    } else {
+    if (!isFunction(data)) ; else {
       // TAG 绑定this 通过_data进行关联
       data = vm._data = data.call(vm);
     } // TAG 用户 vm.name 代理--> vm._data.name 
@@ -491,14 +529,20 @@
 
   function patch(oldVnode, vnode) {
     // NOTE 1、真实dom节点
-    if (oldVnode.nodeType == 1) {
-      // 先把新的虚拟dom创建为真的dom元素，插入到和当前同一层级，再把原来的自己删掉
+    var el = null;
+    var isRealElement = oldVnode.nodeType;
+
+    if (isRealElement) {
+      var oldElm = oldVnode; // 先把新的虚拟dom创建为真的dom元素，插入到和当前同一层级，再把原来的自己删掉
+
       var parentElm = oldVnode.parentNode;
-      console.log("🚀 ", oldVnode);
       var elm = createElm(vnode);
-      parentElm.appendChild(elm, oldVnode.nextSibling);
-      parentElm.removeChild(oldVnode);
+      el = parentElm.insertBefore(elm, oldVnode.nextSibling); // insertBefore() 方法在您指定的已有子节点之前插入新的子节点。
+
+      parentElm.removeChild(oldElm);
     }
+
+    return el;
   }
 
   function createElm(vnode) {
@@ -510,7 +554,9 @@
 
     if (typeof tag === "string") {
       vnode.el = document.createElement(tag);
+      updateProperties(vnode);
       children.forEach(function (child) {
+        //递归创建儿子节点
         vnode.el.appendChild(createElm(child));
       });
     } else {
@@ -518,38 +564,48 @@
     }
 
     return vnode.el;
+  } // 更新属性
+
+
+  function updateProperties(vnode) {
+    vnode.data || {};
+    vnode.el;
   }
 
+  var bailRE = /[^\w.$]/;
   var id = 0;
 
   var Watcher = /*#__PURE__*/function () {
-    function Watcher(vm, updateComponent, cb, options) {
+    function Watcher(vm, expOrFn, cb, options) {
       _classCallCheck(this, Watcher);
 
       this.vm = vm;
-      this.exprOrFn = updateComponent;
+      this.exprOrFn = expOrFn;
       this.cb = cb;
       this.options = options;
       this.id = id++; // 默认调用一次更新函数
 
-      this.getter = updateComponent;
+      this.getter = parsePath(expOrFn);
       this.deps = [];
       this.depsId = new Set(); // 默认初始化
 
-      this.get();
-    }
+      this.value = this.get();
+    } // 初始化
+
 
     _createClass(Watcher, [{
       key: "get",
       value: function get() {
-        pushTarget(this);
-        this.getter();
-        popTarget();
-      }
+        window.target = this;
+        var value = this.getter.call(this.vm, this.vm);
+        window.target = undefined;
+        return value;
+      } // 更新
+
     }, {
       key: "update",
       value: function update() {
-        this.get();
+        queueWatch(this);
       }
     }, {
       key: "addDep",
@@ -563,26 +619,69 @@
           dep.addSub(this);
         }
       }
+    }, {
+      key: "run",
+      value: function run() {
+        var oldValue = this.value;
+        this.value = this.get(); // 监听器实现原理
+
+        this.cb.call(this.vm, this.vm, oldValue);
+      }
     }]);
 
     return Watcher;
   }();
 
+  var queue = [];
+  var has = {};
+
+  function queueWatch(watcher) {
+    var id = watcher.id;
+
+    if (has[id] == null) {
+      queue.push(watcher);
+      has[id] = true;
+      setTimeout(function () {
+        queue.forEach(function (watcher) {
+          return watcher.run();
+        });
+        queue = [];
+        has = {};
+      }, 0);
+    }
+  }
+
+  function parsePath(path) {
+    // 如果不是这种格式 'a.b.c'是函数的话直接返回
+    if (bailRE.test(path)) return path;
+    var segments = path.split('.');
+    return function (obj) {
+      for (var i = 0; i < segments.length; i++) {
+        if (!obj) return;
+        obj = obj[segments[i]];
+      }
+
+      return obj;
+    };
+  }
+
   function lifecycleMixin(Vue) {
     Vue.prototype._update = function (vnode) {
       var vm = this; // INFO 初始化 + 更新
-      // console.log(vm.$el,vnode)
+      // 用虚拟节点创建真实节点替换掉 $el
 
-      patch(vm.$el, vnode);
+      vm.$el = patch(vm.$el, vnode);
     };
   }
   function mountComponent(vm, el) {
+    vm.$options;
+    vm.$el = el;
+
     var updateComponent = function updateComponent() {
       // NOTE 1.调用render函数，生成虚拟dom
       // NOTE 2.用虚拟dom 生成真实dom
       vm._update(vm._render());
-    }; // updateComponent()
-
+    };
 
     new Watcher(vm, updateComponent, function () {}, true);
   }
@@ -615,15 +714,14 @@
           // 取最外层的那个 dom 字符串 outerHTML
           template = el.outerHTML; // 把模板变成 render 函数
 
-          var render = compileToFunction(template); // console.log(render)
-
+          var render = compileToFunction(template);
           options.render = render;
         }
       } // 调用 render方法渲染为真正的dom替换页面的内容
       //NOTE 组件的第一次挂载
 
 
-      mountComponent(vm);
+      mountComponent(vm, el);
     };
   }
   /**
@@ -631,7 +729,6 @@
       <p>Content</p>
       <p>Further Elaborated</p>
     </div>  
-    console.log(d.outerHTML);
     字符串 '<div id="d"><p>Content</p><p>Further Elaborated</p></div>'
    */
 
@@ -665,7 +762,7 @@
         children[_key - 2] = arguments[_key];
       }
 
-      return createElement.apply(void 0, [this].concat(Array.prototype.slice.call(arguments)));
+      return createElement.apply(void 0, [this, tag, attrs].concat(children));
     }; // 创建文本dom
 
 

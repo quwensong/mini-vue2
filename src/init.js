@@ -34,7 +34,6 @@ export function initMixin(Vue){
         template = el.outerHTML
         // 把模板变成 render 函数
         const render = compileToFunction(template)
-        // console.log(render)
         options.render = render
       }
     }
@@ -48,7 +47,6 @@ export function initMixin(Vue){
     <p>Content</p>
     <p>Further Elaborated</p>
   </div>  
-  console.log(d.outerHTML);
   字符串 '<div id="d"><p>Content</p><p>Further Elaborated</p></div>'
  */
 
