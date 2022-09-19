@@ -721,25 +721,80 @@
     };
   }
 
-  function createElement(vm, tag, attrs) {
+  /**
+   * Make a map and return a function for checking if a key
+   * is in that map.
+   */
+  function makeMap(str, expectsLowerCase) {
+    var map = Object.create(null);
+    var list = str.split(',');
+
+    for (var i = 0; i < list.length; i++) {
+      map[list[i]] = true;
+    }
+
+    return expectsLowerCase ? function (val) {
+      return map[val.toLowerCase()];
+    } : function (val) {
+      return map[val];
+    };
+  }
+
+  // import { inBrowser } from 'core/util/env'
+  var isHTMLTag = makeMap('html,body,base,head,link,meta,style,title,' + 'address,article,aside,footer,header,h1,h2,h3,h4,h5,h6,hgroup,nav,section,' + 'div,dd,dl,dt,figcaption,figure,picture,hr,img,li,main,ol,p,pre,ul,' + 'a,b,abbr,bdi,bdo,br,cite,code,data,dfn,em,i,kbd,mark,q,rp,rt,rtc,ruby,' + 's,samp,small,span,strong,sub,sup,time,u,var,wbr,area,audio,map,track,video,' + 'embed,object,param,source,canvas,script,noscript,del,ins,' + 'caption,col,colgroup,table,thead,tbody,td,th,tr,' + 'button,datalist,fieldset,form,input,label,legend,meter,optgroup,option,' + 'output,progress,select,textarea,' + 'details,dialog,menu,menuitem,summary,' + 'content,element,shadow,template,blockquote,iframe,tfoot'); // this map is intentionally selective, only covering SVG elements that may
+  // contain child elements.
+
+  var isSVG = makeMap('svg,animate,circle,clippath,cursor,defs,desc,ellipse,filter,font-face,' + 'foreignobject,g,glyph,image,line,marker,mask,missing-glyph,path,pattern,' + 'polygon,polyline,rect,switch,symbol,text,textpath,tspan,use,view', true);
+  var isReservedTag = function isReservedTag(tag) {
+    return isHTMLTag(tag) || isSVG(tag);
+  };
+  makeMap('text,number,password,search,email,tel,url');
+
+  function createElement(vm, tag) {
+    var attrs = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
+
     for (var _len = arguments.length, children = new Array(_len > 3 ? _len - 3 : 0), _key = 3; _key < _len; _key++) {
       children[_key - 3] = arguments[_key];
     }
 
-    return vnode(vm, tag, attrs, children, undefined);
+    // 如果是原始标签
+    if (isReservedTag(tag)) {
+      return vnode(vm, tag, attrs, children, undefined);
+    } else {
+      //如果是组件
+      var Ctor = vm.$options.components[tag];
+      return createComponent(vm, tag, attrs = {}, children, Ctor);
+    }
   }
-  function createTextElement(vm, text) {
+  function createTextNode(vm, text) {
     return vnode(vm, undefined, undefined, undefined, text);
   }
 
-  function vnode(vm, tag, attrs, children, text) {
+  function createComponent(vm, tag) {
+    var attrs = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
+    var children = arguments.length > 3 ? arguments[3] : undefined;
+    var Ctor = arguments.length > 4 ? arguments[4] : undefined;
+
+    if (isObject$1(Ctor)) {
+      // vm.$options._base 就是 Vue
+      Ctor = vm.$options._base.extend(Ctor);
+    }
+
+    return vnode("vue-component-".concat(Ctor.cid, "-").concat(tag), attrs, undefined, {
+      Ctor: Ctor,
+      children: children
+    });
+  }
+
+  function vnode(vm, tag, attrs, children, text, componentOptions) {
     return {
       vm: vm,
       tag: tag,
       attrs: attrs,
       key: attrs === null || attrs === void 0 ? void 0 : attrs.key,
       children: children,
-      text: text // ...
+      text: text,
+      componentOptions: componentOptions // ...
 
     };
   }
@@ -767,7 +822,7 @@
 
 
     Vue.prototype._v = function (text) {
-      return createTextElement(this, text);
+      return createTextNode(this, text);
     }; // JSON
 
 
@@ -1106,7 +1161,7 @@
   var ASSET_TYPES = ['component', 'directive', 'filter'];
   var LIFECYCLE_HOOKS = ['beforeCreate', 'created', 'beforeMount', 'mounted', 'beforeUpdate', 'updated', 'beforeDestroy', 'destroyed', 'activated', 'deactivated'];
 
-  var strats = {}; // 合并生命周期
+  var strats = {}; // 合并生命周期策略
 
   function mergeHook(parentVal, childVal) {
     if (childVal) {
@@ -1122,11 +1177,34 @@
 
   LIFECYCLE_HOOKS.forEach(function (hook) {
     strats[hook] = mergeHook;
-  });
+  }); // 合并组件策略
+
+  strats.components = function mergeAssets(parentVal, childVal) {
+    var res = Object.create(parentVal); // res.__proto__ = parentVal
+
+    if (childVal) {
+      for (var key in childVal) {
+        res[key] = childVal[key];
+      }
+    }
+
+    return res;
+  }; // 通过原型链
+  // $options:{
+  //   components:{
+  //     my-component3:{name: 'my-component3', data: ƒ}
+  //     __proto__:{
+  //       my-component: ƒ VueComponent(options),
+  //       my-component2: ƒ VueComponent(options),
+  //     }
+  //   }
+  // }
+
   /**
    * Merge two option objects into a new one.
    * Core utility used in both instantiation and inheritance.
    */
+
 
   function mergeOptions(parent, child, vm) {
     // normalizeProps(child, vm)
@@ -1216,7 +1294,7 @@
 
   function initMixin(Vue) {
     Vue.mixin = function (mixin) {
-      // 这里的 this 就是 Vue
+      // 这里的 this 就是 Vue 
       this.options = mergeOptions(this.options, mixin);
       return this;
     };
@@ -1253,8 +1331,7 @@
         } else {
           if (type === 'component' && isPlainObject(definition)) {
             definition.name = definition.name || id;
-            definition = this.options._base.extend(definition);
-            console.log("🚀 ~ file:inition", definition.prototype);
+            definition = this.options._base.extend(definition); // 这个时候的 definition 是一个构造函数，继承自 Vue
           }
 
           if (type === 'directive' && isFunction(definition)) {
@@ -1263,12 +1340,16 @@
               update: definition
             };
           } // 不是组件 指令那就只能是过滤器了
+          // NOTE：这里是重点 。。。
 
 
           this.options[type + 's'][id] = definition;
           return definition;
         }
-      };
+      }; // Vue.component() 只要调用这个方法就会往Vue.options.components里面增加组件
+      // Vue.directive()只要调用这个方法就会往Vue.options.directives里面增加指令
+      // Vue.filter()只要调用这个方法就会往Vue.options.filters里面增加过滤器
+
     });
   }
 
@@ -1279,7 +1360,7 @@
     Vue.extend = function (extendOptions) {
       extendOptions = extendOptions || {};
       var Super = this;
-      var SuperId = Super.cid; // 做一个缓存
+      var SuperId = Super.cid; // 做一个缓存(缓存构造函数)
 
       var cachedCtors = extendOptions._Ctor || (extendOptions._Ctor = {});
 
@@ -1321,6 +1402,7 @@
 
   function initGlobalAPI(Vue) {
     Vue.options = {};
+    Vue.options._base = Vue;
     initMixin(Vue);
     initUse(Vue);
     initExtend(Vue); // 初始化全局 过滤器 组件 指令
@@ -1329,7 +1411,6 @@
       return Vue.options["".concat(type, "s")] = Object.create({});
     });
     initAssetRegisters(Vue);
-    Vue.options._base = Vue;
   }
 
   function Vue(options) {

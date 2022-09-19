@@ -1,4 +1,4 @@
-import { createElement,createTextElement } from "../vdom/index"
+import { createElement,createTextNode } from "../vdom/create-element"
 import { nextTick } from '../../utils/next-tick'
 // vm,tag,attrs,children,normalizationType
 export function renderMixin(Vue){
@@ -19,7 +19,7 @@ export function renderMixin(Vue){
   }
   // 创建文本dom
   Vue.prototype._v = function(text){
-    return createTextElement(this,text)
+    return createTextNode(this,text)
   }
   // JSON
   Vue.prototype._s = function(val){

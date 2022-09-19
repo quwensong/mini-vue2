@@ -11,12 +11,11 @@ export function initExtend(Vue) {
     extendOptions = extendOptions || {}
     const Super = this
     const SuperId = Super.cid
-    // 做一个缓存
+    // 做一个缓存(缓存构造函数)
     const cachedCtors = extendOptions._Ctor || (extendOptions._Ctor = {})
     if (cachedCtors[SuperId]) {
       return cachedCtors[SuperId]
     }
-
 
     const Sub = function VueComponent( options) {
       this._init(options)

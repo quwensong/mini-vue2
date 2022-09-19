@@ -7,6 +7,7 @@ import { ASSET_TYPES } from '../../shared/constants'
 
 export function initGlobalAPI(Vue){
   Vue.options = {};
+  Vue.options._base = Vue 
 
   initMixin(Vue)
   initUse(Vue)
@@ -16,7 +17,9 @@ export function initGlobalAPI(Vue){
   ASSET_TYPES.forEach(type => Vue.options[`${type}s`] = Object.create({}));
   initAssetRegisters(Vue)
 
-  Vue.options._base = Vue 
+  
+
+  
 
 
 }

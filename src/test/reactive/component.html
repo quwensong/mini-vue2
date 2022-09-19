@@ -12,11 +12,13 @@
   <div id="app">
      <p key="112"> hhha{{name}}hello</p>
      <span key="132">{{arr}} </span>
+     <my-component></my-component>
   </div>
 
   <script src="../../../dist/vue.js"></script>
   <script>
     Vue.component('my-component', {
+      template:'<div>Hello Vue.component</div>',
       data(){
         return {
           name:'sssss'
@@ -38,9 +40,11 @@
           name:'哈哈哈',
           arr:[1,2,3]
         }
-      }
+      },
+      
     })
     vm.$mount('#app')
+    console.log(vm)
 
   </script>
   

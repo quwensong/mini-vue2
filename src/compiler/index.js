@@ -10,7 +10,7 @@ export function compileToFunction(template){
   let code = generate(root);
   // _c("div",),_v("hhha"+_s(name)+"hello"),_c("span",{class:"span"}),_v("hello")))
   //模板引擎靠的是 new Function + with
-  let render = new Function(`with(this){return ${code}}`);
+  const render = new Function(`with(this){return ${code}}`);
   // 谁调用的render，this就指向谁
   return render
 }

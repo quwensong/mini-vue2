@@ -8,7 +8,7 @@ import { LIFECYCLE_HOOKS } from '../shared/constants'
 }
 // 策略
 let strats = {}
-// 合并生命周期
+// 合并生命周期策略
 function mergeHook(parentVal,childVal){
   if(childVal){
     if(parentVal){
@@ -24,6 +24,27 @@ function mergeHook(parentVal,childVal){
 LIFECYCLE_HOOKS.forEach(hook => {
   strats[hook] = mergeHook
 })
+
+// 合并组件策略
+strats.components = function mergeAssets(parentVal,childVal){
+  const res = Object.create(parentVal) // res.__proto__ = parentVal
+  if(childVal){
+    for(let key in childVal) {
+      res[key] = childVal[key]
+    }
+  }
+  return res
+}
+// 通过原型链
+// $options:{
+//   components:{
+//     my-component3:{name: 'my-component3', data: ƒ}
+//     __proto__:{
+//       my-component: ƒ VueComponent(options),
+//       my-component2: ƒ VueComponent(options),
+//     }
+//   }
+// }
 
 /**
  * Merge two option objects into a new one.

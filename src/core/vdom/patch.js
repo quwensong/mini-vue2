@@ -12,7 +12,6 @@ export function patch(oldVnode,vnode){
     parentElm.removeChild(oldElm)
     // 将渲染完成的真实dom节点返回
     return elm
-    
   }
 }
 
@@ -47,7 +46,5 @@ function updateProperties(vnode){
     }else{
       el.setAttribute(key,newProps)
     }
-
-
   }
 }
