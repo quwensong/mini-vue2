@@ -5,7 +5,7 @@ export function createElement(vm,tag,attrs={},...children){
 
   // 如果是原始标签
   if(isReservedTag(tag)){
-    return vnode(vm,tag,attrs,children,undefined)
+    return vnode(tag,attrs,children,undefined)
   }else{//如果是组件
     const Ctor = vm.$options.components[tag]
 
@@ -15,7 +15,7 @@ export function createElement(vm,tag,attrs={},...children){
 }
 
 export function createTextNode(vm,text){
-  return vnode(vm,undefined,undefined,undefined,text)
+  return vnode(undefined,undefined,undefined,text)
 }
 
 function createComponent(vm,tag,attrs={},children,Ctor){
@@ -23,12 +23,23 @@ function createComponent(vm,tag,attrs={},children,Ctor){
     // vm.$options._base 就是 Vue
     Ctor = vm.$options._base.extend(Ctor)
   }
-  return vnode(`vue-component-${Ctor.cid}-${tag}`,attrs,undefined,{Ctor,children})
+  
+  attrs.hook = {
+    init(vnode){
+      const { Ctor } = vnode.componentOptions
+      let child = vnode.componentInstance = new Ctor({_isComponent: true})
+      child.$mount()
+        
+    },
+    inserted(){
+
+    }
+  }
+  return vnode(`vue-component-${Ctor.cid}-${tag}`,attrs,undefined,undefined,{Ctor,children})
 }
 
-function vnode(vm,tag,attrs,children,text,componentOptions){
+function vnode(tag,attrs,children,text,componentOptions){
   return {
-    vm,
     tag,
     attrs,
     key:attrs?.key,

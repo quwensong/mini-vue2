@@ -11,28 +11,16 @@
   
   <div id="app">
      <p key="112"> hhha{{name}}hello</p>
-     <span key="132">{{arr}} </span>
+     <span key="132">{{arr}}</span>
      <my-component></my-component>
   </div>
 
   <script src="../../../dist/vue.js"></script>
   <script>
     Vue.component('my-component', {
-      template:'<div>Hello Vue.component</div>',
-      data(){
-        return {
-          name:'sssss'
-        }
-      }
+      template:`<div>1222222222</div>`
     })
 
-    Vue.component('my-component2', {
-      data(){
-        return {
-          name:'sssss'
-        }
-      }
-    })
 
     let vm = new Vue({
       data(){

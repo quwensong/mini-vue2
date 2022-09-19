@@ -28,7 +28,7 @@ export function initMixin(Vue){
 
   Vue.prototype.$mount = function(el){
     const vm = this;
-    const options = vm.$options
+    let options = vm.$options
     el = typeof el === 'string' ? document.querySelector(el) : el
     vm.$el = el
     
@@ -40,12 +40,15 @@ export function initMixin(Vue){
         // 取最外层的那个 dom 字符串 outerHTML
         template = el.outerHTML
         // 把模板变成 render 函数
-        const render = compileToFunction(template)
-        options.render = render
       }
+      const render = compileToFunction(template)
+      options.render = render
     }
     // 调用 render方法渲染为真正的dom替换页面的内容
     //NOTE 组件的第一次挂载
+
+    console.log("🚀 ~ 0000", vm,el)
+
     mountComponent(vm,el) 
   }
 }

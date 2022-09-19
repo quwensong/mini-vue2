@@ -759,18 +759,18 @@
 
     // 如果是原始标签
     if (isReservedTag(tag)) {
-      return vnode(vm, tag, attrs, children, undefined);
+      return vnode(tag, attrs, children, undefined);
     } else {
       //如果是组件
       var Ctor = vm.$options.components[tag];
-      return createComponent(vm, tag, attrs = {}, children, Ctor);
+      return createComponent$1(vm, tag, attrs = {}, children, Ctor);
     }
   }
   function createTextNode(vm, text) {
-    return vnode(vm, undefined, undefined, undefined, text);
+    return vnode(undefined, undefined, undefined, text);
   }
 
-  function createComponent(vm, tag) {
+  function createComponent$1(vm, tag) {
     var attrs = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
     var children = arguments.length > 3 ? arguments[3] : undefined;
     var Ctor = arguments.length > 4 ? arguments[4] : undefined;
@@ -780,15 +780,24 @@
       Ctor = vm.$options._base.extend(Ctor);
     }
 
-    return vnode("vue-component-".concat(Ctor.cid, "-").concat(tag), attrs, undefined, {
+    attrs.hook = {
+      init: function init(vnode) {
+        var Ctor = vnode.componentOptions.Ctor;
+        var child = vnode.componentInstance = new Ctor({
+          _isComponent: true
+        });
+        child.$mount();
+      },
+      inserted: function inserted() {}
+    };
+    return vnode("vue-component-".concat(Ctor.cid, "-").concat(tag), attrs, undefined, undefined, {
       Ctor: Ctor,
       children: children
     });
   }
 
-  function vnode(vm, tag, attrs, children, text, componentOptions) {
+  function vnode(tag, attrs, children, text, componentOptions) {
     return {
-      vm: vm,
       tag: tag,
       attrs: attrs,
       key: attrs === null || attrs === void 0 ? void 0 : attrs.key,
@@ -807,7 +816,7 @@
     Vue.prototype._render = function () {
       var vm = this;
       var render = vm.$options.render;
-      var vnode = render.call(vm, vm.$createElement);
+      var vnode = render.call(vm);
       return vnode;
     }; // 创建普通dom
 
@@ -1058,11 +1067,13 @@
   }
 
   function compileToFunction(template) {
-    // TAG html -> ast -> render -> vnode -> 真实dom
+    console.log("🚀  template", template); // TAG html -> ast -> render -> vnode -> 真实dom
     // NOTE 1、html -> ast
+
     var root = parserHTML(template); // NOTE 2、ast -> render
 
-    var code = generate(root); // _c("div",),_v("hhha"+_s(name)+"hello"),_c("span",{class:"span"}),_v("hello")))
+    var code = generate(root); // console.log("🚀code", code)
+    // _c("div",),_v("hhha"+_s(name)+"hello"),_c("span",{class:"span"}),_v("hello")))
     //模板引擎靠的是 new Function + with
 
     var render = new Function("with(this){return ".concat(code, "}")); // 谁调用的render，this就指向谁
@@ -1071,30 +1082,43 @@
   }
 
   function patch(oldVnode, vnode) {
-    // NOTE 1、真实dom节点
-    var isRealElement = oldVnode.nodeType;
+    // 如果 oldVnode 没有值，说明是组件的挂载 ，调用如下会走到这里
+    // 🚀 ~ file: create-element.js ~ line 32 ~ init ~ child.$mount()
+    if (!oldVnode) {
+      return createElm(vnode);
+    } else {
+      // NOTE 1、真实dom节点
+      var isRealElement = oldVnode.nodeType;
 
-    if (isRealElement) {
-      var oldElm = oldVnode; // 先把新的虚拟dom创建为真的dom元素，插入到和当前同一层级，再把原来的自己删掉
+      if (isRealElement) {
+        var oldElm = oldVnode; // 先把新的虚拟dom创建为真的dom元素，插入到和当前同一层级，再把原来的自己删掉
 
-      var parentElm = oldVnode.parentNode;
-      var elm = createElm(vnode);
-      parentElm.insertBefore(elm, oldVnode.nextSibling); // insertBefore() 方法在您指定的已有子节点之前插入新的子节点。
+        var parentElm = oldVnode.parentNode;
+        var elm = createElm(vnode);
+        parentElm.insertBefore(elm, oldVnode.nextSibling); // insertBefore() 方法在您指定的已有子节点之前插入新的子节点。
 
-      parentElm.removeChild(oldElm); // 将渲染完成的真实dom节点返回
+        parentElm.removeChild(oldElm); // 将渲染完成的真实dom节点返回
 
-      return elm;
+        return elm;
+      }
     }
-  }
+  } // NOTE 返回真实 dom节点元素
 
   function createElm(vnode) {
     var tag = vnode.tag;
         vnode.attrs;
-        var children = vnode.children,
+        var _vnode$children = vnode.children,
+        children = _vnode$children === void 0 ? [] : _vnode$children,
         text = vnode.text;
         vnode.vm; // 普通元素
 
     if (typeof tag === "string") {
+      // 实例化组件
+      if (createComponent(vnode)) {
+        // 应该返回真实 dom
+        return;
+      }
+
       vnode.el = document.createElement(tag);
       updateProperties(vnode);
       children.forEach(function (child) {
@@ -1106,6 +1130,20 @@
     }
 
     return vnode.el;
+  }
+
+  function createComponent(vnode) {
+    // 创建组件实例
+    var i = vnode.attrs;
+
+    if ((i = i.hook) && (i = i.init)) {
+      i(vnode);
+    } // 执行完毕后
+
+
+    if (vnode.componentInstance) {
+      return vnode.componentInstance.$el;
+    }
   } // 更新属性
 
 
@@ -1273,14 +1311,15 @@
         if (!template && el) {
           // 取最外层的那个 dom 字符串 outerHTML
           template = el.outerHTML; // 把模板变成 render 函数
-
-          var render = compileToFunction(template);
-          options.render = render;
         }
+
+        var render = compileToFunction(template);
+        options.render = render;
       } // 调用 render方法渲染为真正的dom替换页面的内容
       //NOTE 组件的第一次挂载
 
 
+      console.log("🚀 ~ 0000", vm, el);
       mountComponent(vm, el);
     };
   }
