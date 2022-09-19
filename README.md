@@ -1,5 +1,6 @@
 # mini-vue2
 A concise Vue2 source code project to help you better understand how Vue2 works( in development )
+
 **运行步骤**
 1. 第一步：安装依赖 `npm install`
 2. 第二步：npm run build（打包结果在dist/vue.js）
