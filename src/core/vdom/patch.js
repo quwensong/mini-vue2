@@ -2,6 +2,11 @@ export function patch(oldVnode,vnode){
   // 如果 oldVnode 没有值，说明是组件的挂载 ，调用如下会走到这里
   // 🚀 ~ file: create-element.js ~ line 32 ~ init ~ child.$mount()
   if(!oldVnode){
+    // 当组件挂载的时候，由于没有 $el 也就是oldVnode 会走到这里来
+    // 然后这里利用 调用组件的_render方法得到的render函数返回的vnode创建出一个真实的dom节点
+    // 并且返回这个真实dom 
+    //这样子组件的$el就有值了 哈哈哈
+    // vm.$el = patch(vm.$el,vnode)
     return createElm(vnode)
   }else{
     // NOTE 1、真实dom节点
@@ -28,10 +33,9 @@ function createElm(vnode){
   if(typeof tag === "string"){
     // 实例化组件
     if(createComponent(vnode)){
-      // 应该返回真实 dom
-      return 
+      // 组件应该返回真实 dom
+      return vnode.componentInstance.$el
     }
-
     vnode.el = document.createElement(tag)
     updateProperties(vnode)
     children.forEach(child => {//递归创建儿子节点
@@ -46,7 +50,7 @@ function createElm(vnode){
 function createComponent(vnode){
   // 创建组件实例
   let i = vnode.attrs
-  if((i = i.hook) && (i = i.init)){
+  if((i = i?.hook) && (i = i?.init)){
     i(vnode)
   }
   // 执行完毕后
@@ -55,7 +59,6 @@ function createComponent(vnode){
   }
 
 }
-
 // 更新属性
 function updateProperties(vnode){
   const newProps = vnode.data || {};

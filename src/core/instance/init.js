@@ -1,6 +1,6 @@
 import { initState } from "./state"
 import { initRender } from './render'
-import { compileToFunction } from '../../compiler/index'
+import { compileToFunction } from '../../compiler/parser/index'
 import { mountComponent,callHook } from "./lifecycle"
 
 import { mergeOptions } from '../../utils/mergeOptions'
@@ -46,9 +46,6 @@ export function initMixin(Vue){
     }
     // 调用 render方法渲染为真正的dom替换页面的内容
     //NOTE 组件的第一次挂载
-
-    console.log("🚀 ~ 0000", vm,el)
-
     mountComponent(vm,el) 
   }
 }

@@ -29,10 +29,8 @@ function createComponent(vm,tag,attrs={},children,Ctor){
       const { Ctor } = vnode.componentOptions
       let child = vnode.componentInstance = new Ctor({_isComponent: true})
       child.$mount()
-        
     },
     inserted(){
-
     }
   }
   return vnode(`vue-component-${Ctor.cid}-${tag}`,attrs,undefined,undefined,{Ctor,children})

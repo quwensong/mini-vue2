@@ -80,6 +80,65 @@
     return obj;
   }
 
+  function _slicedToArray(arr, i) {
+    return _arrayWithHoles(arr) || _iterableToArrayLimit(arr, i) || _unsupportedIterableToArray(arr, i) || _nonIterableRest();
+  }
+
+  function _arrayWithHoles(arr) {
+    if (Array.isArray(arr)) return arr;
+  }
+
+  function _iterableToArrayLimit(arr, i) {
+    var _i = arr == null ? null : typeof Symbol !== "undefined" && arr[Symbol.iterator] || arr["@@iterator"];
+
+    if (_i == null) return;
+    var _arr = [];
+    var _n = true;
+    var _d = false;
+
+    var _s, _e;
+
+    try {
+      for (_i = _i.call(arr); !(_n = (_s = _i.next()).done); _n = true) {
+        _arr.push(_s.value);
+
+        if (i && _arr.length === i) break;
+      }
+    } catch (err) {
+      _d = true;
+      _e = err;
+    } finally {
+      try {
+        if (!_n && _i["return"] != null) _i["return"]();
+      } finally {
+        if (_d) throw _e;
+      }
+    }
+
+    return _arr;
+  }
+
+  function _unsupportedIterableToArray(o, minLen) {
+    if (!o) return;
+    if (typeof o === "string") return _arrayLikeToArray(o, minLen);
+    var n = Object.prototype.toString.call(o).slice(8, -1);
+    if (n === "Object" && o.constructor) n = o.constructor.name;
+    if (n === "Map" || n === "Set") return Array.from(o);
+    if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return _arrayLikeToArray(o, minLen);
+  }
+
+  function _arrayLikeToArray(arr, len) {
+    if (len == null || len > arr.length) len = arr.length;
+
+    for (var i = 0, arr2 = new Array(len); i < len; i++) arr2[i] = arr[i];
+
+    return arr2;
+  }
+
+  function _nonIterableRest() {
+    throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.");
+  }
+
   // Browser environment sniffing
   var inBrowser = typeof window !== 'undefined';
   var UA = inBrowser && window.navigator.userAgent.toLowerCase();
@@ -721,22 +780,12 @@
     };
   }
 
-  /**
-   * Make a map and return a function for checking if a key
-   * is in that map.
-   */
-  function makeMap(str, expectsLowerCase) {
-    var map = Object.create(null);
-    var list = str.split(',');
-
-    for (var i = 0; i < list.length; i++) {
-      map[list[i]] = true;
-    }
-
-    return expectsLowerCase ? function (val) {
-      return map[val.toLowerCase()];
-    } : function (val) {
-      return map[val];
+  function makeMap(str) {
+    var map = str.split(',').reduce(function (map, item) {
+      return map[item] = true, map;
+    }, Object.create(null));
+    return function (val) {
+      return !!map[val];
     };
   }
 
@@ -744,7 +793,7 @@
   var isHTMLTag = makeMap('html,body,base,head,link,meta,style,title,' + 'address,article,aside,footer,header,h1,h2,h3,h4,h5,h6,hgroup,nav,section,' + 'div,dd,dl,dt,figcaption,figure,picture,hr,img,li,main,ol,p,pre,ul,' + 'a,b,abbr,bdi,bdo,br,cite,code,data,dfn,em,i,kbd,mark,q,rp,rt,rtc,ruby,' + 's,samp,small,span,strong,sub,sup,time,u,var,wbr,area,audio,map,track,video,' + 'embed,object,param,source,canvas,script,noscript,del,ins,' + 'caption,col,colgroup,table,thead,tbody,td,th,tr,' + 'button,datalist,fieldset,form,input,label,legend,meter,optgroup,option,' + 'output,progress,select,textarea,' + 'details,dialog,menu,menuitem,summary,' + 'content,element,shadow,template,blockquote,iframe,tfoot'); // this map is intentionally selective, only covering SVG elements that may
   // contain child elements.
 
-  var isSVG = makeMap('svg,animate,circle,clippath,cursor,defs,desc,ellipse,filter,font-face,' + 'foreignobject,g,glyph,image,line,marker,mask,missing-glyph,path,pattern,' + 'polygon,polyline,rect,switch,symbol,text,textpath,tspan,use,view', true);
+  var isSVG = makeMap('svg,animate,circle,clippath,cursor,defs,desc,ellipse,filter,font-face,' + 'foreignobject,g,glyph,image,line,marker,mask,missing-glyph,path,pattern,' + 'polygon,polyline,rect,switch,symbol,text,textpath,tspan,use,view');
   var isReservedTag = function isReservedTag(tag) {
     return isHTMLTag(tag) || isSVG(tag);
   };
@@ -852,8 +901,8 @@
     };
   }
 
-  // Regular Expressions for parsing tags and attributes
   // NOTE 标签名
+
   var ncname = "[a-zA-Z_][\\-\\.0-9_a-zA-Z]*"; // NOTE 标签名捕获 通过正则的分组查找
 
   var qnameCapture = "((?:".concat(ncname, "\\:)?").concat(ncname, ")"); // NOTE 匹配开始标签
@@ -865,60 +914,65 @@
   var endTag = new RegExp("^<\\/".concat(qnameCapture, "[^>]*>")); // NOTE 匹配属性
 
   var attribute = /^\s*([^\s"'<>\/=]+)(?:\s*(=)\s*(?:"([^"]*)"+|'([^']*)'+|([^\s"'=<>`]+)))?/;
+  makeMap('script,style,textarea');
+  makeMap('address,article,aside,base,blockquote,body,caption,col,colgroup,dd,' + 'details,dialog,div,dl,dt,fieldset,figcaption,figure,footer,form,' + 'h1,h2,h3,h4,h5,h6,head,header,hgroup,hr,html,legend,li,menuitem,meta,' + 'optgroup,option,param,rp,rt,source,style,summary,tbody,td,tfoot,th,thead,' + 'title,tr,track');
+  makeMap('pre,textarea');
 
-  function createAstElement(tagName, attrs) {
-    return {
-      tag: tagName,
-      type: 1,
-      children: [],
-      parent: null,
-      attrs: attrs
-    };
-  }
+  function parseHTML(html) {
+    var ELEMENT_TYPE = 1;
+    var TEXT_TYPE = 3;
+    var stack = [];
+    var currentParent; // 指向的是栈中的最后一个
 
-  var root = null;
-  var stack = [];
+    var root;
 
-  function start(tagName, attributes) {
-    var parent = stack[stack.length - 1];
-    var element = createAstElement(tagName, attributes);
-
-    if (!root) {
-      root = element;
+    function createASTElement(tag, attrs) {
+      return {
+        tag: tag,
+        type: ELEMENT_TYPE,
+        children: [],
+        attrs: attrs,
+        parent: null
+      };
     }
 
-    element.parent = parent;
+    function start(tag, attrs) {
+      var node = createASTElement(tag, attrs); // 创造一个ast节点
 
-    if (parent) {
-      parent.children.push(element);
+      if (!root) {
+        // 看一下是否为空树
+        root = node; // 如果为空则当前是树的根节点
+      }
+
+      if (currentParent) {
+        node.parent = currentParent; // 只赋予了parent属性
+
+        currentParent.children.push(node); // 还需要让父亲记住自己
+      }
+
+      stack.push(node);
+      currentParent = node; // console.log('root', root)
     }
 
-    stack.push(element);
-  }
+    function chars(text) {
+      text = text.replace(/\s/g, '');
 
-  function end(tagName) {
-    var last = stack.pop();
-
-    if (last.tag !== tagName) {
-      throw new Error("标签有误");
+      if (text) {
+        currentParent.children.push({
+          type: TEXT_TYPE,
+          text: text,
+          parent: currentParent
+        });
+      }
     }
-  }
 
-  function chars(text) {
-    text = text.replace(/\s/g, "");
-    var parent = stack[stack.length - 1];
-
-    if (text) {
-      parent.children.push({
-        type: 3,
-        text: text
-      });
+    function end(tag) {
+      stack.pop();
+      currentParent = stack[stack.length - 1];
     }
-  }
 
-  function parserHTML(html) {
-    function advance(len) {
-      html = html.substring(len);
+    function advance(n) {
+      html = html.substring(n);
     }
 
     function parseStartTag() {
@@ -927,84 +981,90 @@
       if (start) {
         var match = {
           tagName: start[1],
+          // 标签名
           attrs: []
         };
-        advance(start[0].length);
+        advance(start[0].length); // 如果不是开始标签的结束 就一直匹配下去
 
-        var _end;
-
-        var attr;
+        var attr, _end;
 
         while (!(_end = html.match(startTagClose)) && (attr = html.match(attribute))) {
+          advance(attr[0].length);
           match.attrs.push({
             name: attr[1],
             value: attr[3] || attr[4] || attr[5]
           });
-          advance(attr[0].length);
         }
 
         if (_end) {
-          advance(_end[0].length);
+          advance(_end[0].length); // console.log('attr[0].length: ', attr[0].length);
         }
 
         return match;
-      }
+      } // console.log(html)
+
 
       return false;
-    } // 解析 template 字符串
-
+    }
 
     while (html) {
-      //看解析的内容是否存在
-      var textEnd = html.indexOf('<');
+      // html最开始肯定是一个 <   <div>hello</div>
+      // 如果textEnd 为0 说明是一个开始标签或者结束标签
+      // 如果textEnd >0 说明就是文本的结束位置
+      var textEnd = html.indexOf('<'); // 如果indexOf中的索引是0 则说明是个标签
 
-      if (textEnd == 0) {
-        var startTagMatch = parseStartTag(); //解析开始标签
+      if (textEnd === 0) {
+        var startTagMatch = parseStartTag();
 
         if (startTagMatch) {
           start(startTagMatch.tagName, startTagMatch.attrs);
           continue;
         }
 
-        var endTagMatch = html.match(endTag); //解析结束标签
+        var endTagMatch = html.match(endTag);
 
         if (endTagMatch) {
-          end(endTagMatch[1]);
           advance(endTagMatch[0].length);
+          end(endTagMatch[1]);
           continue;
         }
       }
 
-      var text = void 0; // 1234</div>
-
       if (textEnd > 0) {
-        text = html.substring(0, textEnd);
-      }
+        var text = html.substring(0, textEnd); // 文本内容
 
-      if (text) {
-        chars(text);
-        advance(text.length);
+        if (text) {
+          chars(text);
+          advance(text.length);
+        }
       }
-    }
+    } // console.log('cc', html)
+
 
     return root;
   }
 
-  var defaultTagRe = /\{\{((?:.|\r?\n)+?)\}\}/g; //{{ name }}
+  var defaultTagRE = /\{\{((?:.|\r?\n)+?)\}\}/g; // {{ asdsadsa }} 匹配到的内容是我们表达式的变量
 
   function genProps(attrs) {
-    var str = '';
+    var str = ''; // {name,value}
 
     for (var i = 0; i < attrs.length; i++) {
       var attr = attrs[i];
 
       if (attr.name === 'style') {
         (function () {
-          var styleObj = {};
-          attr.value.replace(/([^;:]+):([^;:]+)/g, function () {
-            styleObj[arguments[1]] = arguments[2];
+          // color:red => {color:'red'}
+          var obj = {};
+          attr.value.split(';').forEach(function (item) {
+            var _item$split = item.split(':'),
+                _item$split2 = _slicedToArray(_item$split, 2),
+                key = _item$split2[0],
+                value = _item$split2[1];
+
+            obj[key] = value;
           });
-          attr.value = styleObj;
+          attr.value = obj;
         })();
       }
 
@@ -1014,28 +1074,32 @@
     return "{".concat(str.slice(0, -1), "}");
   }
 
-  function gen(el) {
-    if (el.type == 1) {
-      return generate(el);
+  function gen(node) {
+    if (node.type === 1) {
+      return codegen(node);
     } else {
-      var text = el.text; // return  `_v("${text}")`
+      // 文本
+      var text = node.text;
 
-      if (!defaultTagRe.test(text)) {
-        return "_v(\"".concat(text, "\")");
+      if (!defaultTagRE.test(text)) {
+        return "_v(".concat(JSON.stringify(text), ")");
       } else {
+        // _c 元素 _s文本 _v 文本变量 {{name}}
+        // _v(_s(name)+'hello'+_v(name))
         var tokens = [];
         var match;
-        var lastIndex = defaultTagRe.lastIndex = 0;
+        var lastIndex = 0;
+        defaultTagRE.lastIndex = 0;
 
-        while (match = defaultTagRe.exec(text)) {
-          var index = match.index; //开始索引
+        while (match = defaultTagRE.exec(text)) {
+          var index = match.index;
 
           if (index > lastIndex) {
             tokens.push(JSON.stringify(text.slice(lastIndex, index)));
           }
 
           tokens.push("_s(".concat(match[1].trim(), ")"));
-          lastIndex = index + match[0].length; //结束索引
+          lastIndex = index + match[0].length;
         }
 
         if (lastIndex < text.length) {
@@ -1047,37 +1111,25 @@
     }
   }
 
-  function genChildren(el) {
-    var children = el.children;
-
-    if (children) {
-      return children.map(function (c) {
-        return gen(c);
-      }).join(',');
-    }
-
-    return false;
+  function genChildren(children) {
+    return children === null || children === void 0 ? void 0 : children.map(function (child) {
+      return gen(child);
+    }).join(',');
   }
 
-  function generate(el) {
-    // 遍历树，将树拼接为字符串
-    var children = genChildren(el);
-    var code = "_c(\"".concat(el.tag, "\",").concat(el.attrs.length ? genProps(el.attrs) : 'undefined').concat(children ? ",".concat(children) : '', ")");
+  function codegen(ast) {
+    var children = genChildren(ast.children);
+    var code = "_c('".concat(ast.tag, "',").concat(ast.attrs.length > 0 ? genProps(ast.attrs) : "null").concat(ast.children.length ? ",".concat(children) : '', ")");
     return code;
   }
 
   function compileToFunction(template) {
-    console.log("🚀  template", template); // TAG html -> ast -> render -> vnode -> 真实dom
-    // NOTE 1、html -> ast
+    // 1. 将template转换成ast语法树
+    var ast = parseHTML(template); // 2. 生成render方法(render方法执行后返回的结果就是 虚拟DOM)
+    // 模版引擎的实现原理 就是 with + new Function()
 
-    var root = parserHTML(template); // NOTE 2、ast -> render
-
-    var code = generate(root); // console.log("🚀code", code)
-    // _c("div",),_v("hhha"+_s(name)+"hello"),_c("span",{class:"span"}),_v("hello")))
-    //模板引擎靠的是 new Function + with
-
-    var render = new Function("with(this){return ".concat(code, "}")); // 谁调用的render，this就指向谁
-
+    var code = "with(this){return ".concat(codegen(ast), "}");
+    var render = new Function(code);
     return render;
   }
 
@@ -1085,6 +1137,11 @@
     // 如果 oldVnode 没有值，说明是组件的挂载 ，调用如下会走到这里
     // 🚀 ~ file: create-element.js ~ line 32 ~ init ~ child.$mount()
     if (!oldVnode) {
+      // 当组件挂载的时候，由于没有 $el 也就是oldVnode 会走到这里来
+      // 然后这里利用 调用组件的_render方法得到的render函数返回的vnode创建出一个真实的dom节点
+      // 并且返回这个真实dom 
+      //这样子组件的$el就有值了 哈哈哈
+      // vm.$el = patch(vm.$el,vnode)
       return createElm(vnode);
     } else {
       // NOTE 1、真实dom节点
@@ -1115,8 +1172,8 @@
     if (typeof tag === "string") {
       // 实例化组件
       if (createComponent(vnode)) {
-        // 应该返回真实 dom
-        return;
+        // 组件应该返回真实 dom
+        return vnode.componentInstance.$el;
       }
 
       vnode.el = document.createElement(tag);
@@ -1133,10 +1190,12 @@
   }
 
   function createComponent(vnode) {
+    var _i, _i2;
+
     // 创建组件实例
     var i = vnode.attrs;
 
-    if ((i = i.hook) && (i = i.init)) {
+    if ((i = (_i = i) === null || _i === void 0 ? void 0 : _i.hook) && (i = (_i2 = i) === null || _i2 === void 0 ? void 0 : _i2.init)) {
       i(vnode);
     } // 执行完毕后
 
@@ -1319,7 +1378,6 @@
       //NOTE 组件的第一次挂载
 
 
-      console.log("🚀 ~ 0000", vm, el);
       mountComponent(vm, el);
     };
   }

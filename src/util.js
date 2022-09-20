@@ -22,6 +22,18 @@ export function isArray(target){
   return Array.isArray(target)
 }
 
+let _isServer
+export const isServerRendering = () => {
+  if (_isServer === undefined) {
+    if (!inBrowser && typeof global !== 'undefined') {
+      _isServer = global['process'] && global['process'].env.VUE_ENV === 'server'
+    } else {
+      _isServer = false
+    }
+  }
+  return _isServer
+}
+
 /**
  * Mix properties into target object.
  */
@@ -87,4 +99,13 @@ export function toArray(list, start) {
     ret[i] = list[i + start]
   }
   return ret
+}
+
+const camelizeRE = /-(\w)/g;
+export function camelize(str) {
+  return str.replace(camelizeRE, (_, c) => (c ? c.toUpperCase() : ''));
+}
+
+export function capitalize(str) {
+  return str[0].toUpperCase() + str.slice(1);
 }
