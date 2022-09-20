@@ -46,8 +46,6 @@ function decodeAttr(value, shouldDecodeNewlines) {
 }
 
 
-
-
 export function parseHTML(html) {
   const ELEMENT_TYPE = 1;
   const TEXT_TYPE = 3;
@@ -74,8 +72,6 @@ export function parseHTML(html) {
     }
     stack.push(node)
     currentParent = node;
-
-    // console.log('root', root)
   }
   function chars(text) {
     text = text.replace(/\s/g, '');
@@ -115,18 +111,15 @@ export function parseHTML(html) {
       }
       if (end) {
         advance(end[0].length)
-        // console.log('attr[0].length: ', attr[0].length);
       }
       return match;
     }
-
-    // console.log(html)
     return false;
   }
 
   while (html) { // html最开始肯定是一个 <   <div>hello</div>
-    // 如果textEnd 为0 说明是一个开始标签或者结束标签
-    // 如果textEnd >0 说明就是文本的结束位置
+    // 如果textEnd = 0 说明是一个开始标签或者结束标签
+    // 如果textEnd > 0 说明就是文本的结束位置
     let textEnd = html.indexOf('<'); // 如果indexOf中的索引是0 则说明是个标签
     if (textEnd === 0) {
       const startTagMatch = parseStartTag();
@@ -150,6 +143,5 @@ export function parseHTML(html) {
     }
 
   }
-  // console.log('cc', html)
   return root;
 }
