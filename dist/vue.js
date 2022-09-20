@@ -780,20 +780,44 @@
     };
   }
 
-  function makeMap(str) {
-    var map = str.split(',').reduce(function (map, item) {
-      return map[item] = true, map;
-    }, Object.create(null));
-    return function (val) {
-      return !!map[val];
+  /* @flow */
+
+  Object.freeze({}); // These helpers produce better VM code in JS engines due to their
+  /**
+   * Make a map and return a function for checking if a key
+   * is in that map.
+   */
+
+  function makeMap(str, expectsLowerCase) {
+    var map = Object.create(null);
+    var list = str.split(',');
+
+    for (var i = 0; i < list.length; i++) {
+      map[list[i]] = true;
+    }
+
+    return expectsLowerCase ? function (val) {
+      return map[val.toLowerCase()];
+    } : function (val) {
+      return map[val];
     };
   }
+  /**
+   * Check if a tag is a built-in tag.
+   */
+
+  makeMap('slot,component', true);
+  /**
+   * Check if an attribute is a reserved attribute.
+   */
+
+  makeMap('key,ref,slot,slot-scope,is');
 
   // import { inBrowser } from 'core/util/env'
   var isHTMLTag = makeMap('html,body,base,head,link,meta,style,title,' + 'address,article,aside,footer,header,h1,h2,h3,h4,h5,h6,hgroup,nav,section,' + 'div,dd,dl,dt,figcaption,figure,picture,hr,img,li,main,ol,p,pre,ul,' + 'a,b,abbr,bdi,bdo,br,cite,code,data,dfn,em,i,kbd,mark,q,rp,rt,rtc,ruby,' + 's,samp,small,span,strong,sub,sup,time,u,var,wbr,area,audio,map,track,video,' + 'embed,object,param,source,canvas,script,noscript,del,ins,' + 'caption,col,colgroup,table,thead,tbody,td,th,tr,' + 'button,datalist,fieldset,form,input,label,legend,meter,optgroup,option,' + 'output,progress,select,textarea,' + 'details,dialog,menu,menuitem,summary,' + 'content,element,shadow,template,blockquote,iframe,tfoot'); // this map is intentionally selective, only covering SVG elements that may
   // contain child elements.
 
-  var isSVG = makeMap('svg,animate,circle,clippath,cursor,defs,desc,ellipse,filter,font-face,' + 'foreignobject,g,glyph,image,line,marker,mask,missing-glyph,path,pattern,' + 'polygon,polyline,rect,switch,symbol,text,textpath,tspan,use,view');
+  var isSVG = makeMap('svg,animate,circle,clippath,cursor,defs,desc,ellipse,filter,font-face,' + 'foreignobject,g,glyph,image,line,marker,mask,missing-glyph,path,pattern,' + 'polygon,polyline,rect,switch,symbol,text,textpath,tspan,use,view', true);
   var isReservedTag = function isReservedTag(tag) {
     return isHTMLTag(tag) || isSVG(tag);
   };
@@ -801,12 +825,21 @@
 
   function createElement(vm, tag) {
     var attrs = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
+    var children = arguments.length > 3 ? arguments[3] : undefined;
 
-    for (var _len = arguments.length, children = new Array(_len > 3 ? _len - 3 : 0), _key = 3; _key < _len; _key++) {
-      children[_key - 3] = arguments[_key];
+    if (typeof children == 'string') {
+      children = [vnode(undefined, undefined, undefined, children)];
     }
 
-    // 如果是原始标签
+    if (Array.isArray(children) && typeof children[0] === 'function') {
+      attrs = attrs || {};
+      attrs.scopedSlots = {
+        "default": children[0]
+      };
+      children.length = 0;
+    } // 如果是原始标签
+
+
     if (isReservedTag(tag)) {
       return vnode(tag, attrs, children, undefined);
     } else {
@@ -865,7 +898,8 @@
     Vue.prototype._render = function () {
       var vm = this;
       var render = vm.$options.render;
-      var vnode = render.call(vm);
+      var vnode = render.call(vm, vm.$createElement);
+      console.log("🚀 ~ file: render.js ~ line 15 ~ renderMixin ~ vnode", vnode);
       return vnode;
     }; // 创建普通dom
 
@@ -875,7 +909,7 @@
         children[_key - 2] = arguments[_key];
       }
 
-      return createElement.apply(void 0, [this, tag, attrs].concat(children));
+      return createElement(this, tag, attrs, children);
     }; // 创建文本dom
 
 
@@ -914,9 +948,9 @@
   var endTag = new RegExp("^<\\/".concat(qnameCapture, "[^>]*>")); // NOTE 匹配属性
 
   var attribute = /^\s*([^\s"'<>\/=]+)(?:\s*(=)\s*(?:"([^"]*)"+|'([^']*)'+|([^\s"'=<>`]+)))?/;
-  makeMap('script,style,textarea');
+  makeMap('script,style,textarea', true);
   makeMap('address,article,aside,base,blockquote,body,caption,col,colgroup,dd,' + 'details,dialog,div,dl,dt,fieldset,figcaption,figure,footer,form,' + 'h1,h2,h3,h4,h5,h6,head,header,hgroup,hr,html,legend,li,menuitem,meta,' + 'optgroup,option,param,rp,rt,source,style,summary,tbody,td,tfoot,th,thead,' + 'title,tr,track');
-  makeMap('pre,textarea');
+  makeMap('pre,textarea', true);
 
   function parseHTML(html) {
     var ELEMENT_TYPE = 1;
@@ -1240,7 +1274,9 @@
       vm._update(vm._render());
     };
 
-    new Watcher(vm, updateComponent, function () {}, true);
+    new Watcher(vm, updateComponent, function () {
+      callHook(vm, 'beforeUpdate');
+    }, true);
     callHook(vm, 'mounted');
   }
   function callHook(vm, hook) {

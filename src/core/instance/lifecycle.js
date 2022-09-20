@@ -21,7 +21,9 @@ export function mountComponent(vm,el){
 
   }
 
-  new Watcher(vm, updateComponent,()=>{},true)
+  new Watcher(vm, updateComponent,()=>{
+    callHook(vm,'beforeUpdate')
+  },true)
   callHook(vm,'mounted')
 }
 

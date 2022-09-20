@@ -1,17 +1,25 @@
 import { isReservedTag } from '../../utils/web'
 import { isObject } from '../../util'
 
-export function createElement(vm,tag,attrs={},...children){
+export function createElement(vm,tag,attrs={},children){
+  if(typeof children == 'string'){
+    children = [vnode(undefined,undefined,undefined,children)]
+  }
 
+
+  if (Array.isArray(children) && typeof children[0] === 'function') {
+    attrs = attrs || {}
+    attrs.scopedSlots = { default: children[0] }
+    children.length = 0
+  }
   // 如果是原始标签
+
   if(isReservedTag(tag)){
     return vnode(tag,attrs,children,undefined)
   }else{//如果是组件
     const Ctor = vm.$options.components[tag]
-
     return createComponent(vm,tag,attrs={},children,Ctor)
   }
-
 }
 
 export function createTextNode(vm,text){

@@ -10,12 +10,14 @@ export function renderMixin(Vue){
   Vue.prototype._render = function(){
     const vm = this
     const { render } = vm.$options
-    const vnode = render.call(vm)
+    
+    const vnode = render.call(vm,vm.$createElement)
+    console.log("🚀 ~ file: render.js ~ line 15 ~ renderMixin ~ vnode", vnode)
     return vnode
   }
   // 创建普通dom
   Vue.prototype._c = function(tag,attrs,...children){
-    return createElement(this,tag,attrs,...children)
+    return createElement(this,tag,attrs,children)
   }
   // 创建文本dom
   Vue.prototype._v = function(text){

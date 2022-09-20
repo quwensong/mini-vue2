@@ -18,11 +18,13 @@
   <script src="../../../dist/vue.js"></script>
   <script>
     Vue.component('my-component', {
-      template:`<div>{{name}}</div>`,
       data(){
         return {
-          name:'rt'
+          name:'my-component'
         }
+      },
+      render(h) {
+        return h('div',null,'222222222')
       }
     })
 
